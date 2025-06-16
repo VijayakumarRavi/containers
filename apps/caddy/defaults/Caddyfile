@@ -1,28 +1,5 @@
-{
-    auto_https disable_redirects
-    order authenticate before respond
-    admin off
-}
-
 :80 {
-    route {
-        # Enable authentication
-        authenticate {
-            provider local
-            crypto bcrypt
-            local_users {
-                admin password123
-            }
-            cookie {
-                lifetime 3600
-            }
-        }
-
-        # Protect everything under /
-        authenticate
-
         # Serve files
         root * /srv
         file_server
-    }
 }

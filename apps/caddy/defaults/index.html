@@ -2,29 +2,89 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Welcome to Caddy!</title>
   <style>
+    :root {
+      color-scheme: light dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: sans-serif;
-      background: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background-color: #f9fafb;
+      color: #333;
+      padding: 1rem;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .card {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
       text-align: center;
-      margin-top: 100px;
     }
 
     h1 {
-      color: #2c3e50;
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
     }
 
     p {
-      color: #555;
+      font-size: 1rem;
+      margin: 0.5rem 0;
+    }
+
+    a {
+      color: #3182ce;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #1a202c;
+        color: #e2e8f0;
+      }
+
+      .card {
+        background: #2d3748;
+        color: #e2e8f0;
+      }
+
+      a {
+        color: #63b3ed;
+      }
     }
   </style>
 </head>
 
 <body>
-  <h1>🔒 Protected Page</h1>
-  <p>You are logged in. Welcome to your secure site!</p>
+  <div class="card">
+    <h1>🌐 Caddy is Running!</h1>
+    <p>Welcome to your Caddy server. This is the default page.</p>
+    <p>This version of Caddy includes:</p>
+    <p>
+      🔐 <a href="https://github.com/greenpau/caddy-security" target="_blank" rel="noopener noreferrer">caddy-security</a><br />
+      ☁️ <a href="https://github.com/caddy-dns/cloudflare" target="_blank" rel="noopener noreferrer">Cloudflare DNS plugin</a>
+    </p>
+  </div>
 </body>
 
 </html>
