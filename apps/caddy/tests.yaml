@@ -1,0 +1,8 @@
+---
+schemaVersion: "2.0.0"
+process:
+  caddy:
+    running: true
+port:
+  tcp:80:
+    listening: true
