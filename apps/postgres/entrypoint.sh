@@ -50,19 +50,19 @@ if [ ! -f /etc/pgbackrest/pgbackrest.conf ]; then
     cat <<EOF > /cronjob
 # Pgbackrest repo1
 # Full backup: Sunday at 01:00
-0 1 * * 0 gosu postgres pgbackrest --stanza=production backup --repo=1 --type=full
+0 1 * * 0 pgbackrest --stanza=production backup --repo=1 --type=full
 # Differential backup: Monday-Saturday at 01:00
-0 1 * * 1-6 gosu postgres pgbackrest --stanza=production backup --repo=1 --type=diff
+0 1 * * 1-6 pgbackrest --stanza=production backup --repo=1 --type=diff
 # Incremental backup: Every hour except 01:00
-0 2-23 * * * gosu postgres pgbackrest --stanza=production backup --repo=1 --type=incr
+0 2-23 * * * pgbackrest --stanza=production backup --repo=1 --type=incr
 
 # Backup status check
-0 1 * * * gosu postgres pgbackrest --stanza=production info --repo=1 >> /var/log/pgbackrest/repo1-backup-status.log 2>&1
+0 1 * * * pgbackrest --stanza=production info --repo=1 >> /var/log/pgbackrest/repo1-backup-status.log 2>&1
 EOF
 fi
 
 log_message "Setting up supercronic for cron job management..."
-supercronic -debug -inotify /cronjob > /var/log/pgbackrest/supercronic.log 2>&1 &
+gosu postgres supercronic -debug -inotify /cronjob > /var/log/pgbackrest/supercronic.log 2>&1 &
 
 log_message "Starting PostgreSQL with pgbackrest archiving enabled..."
 shift
