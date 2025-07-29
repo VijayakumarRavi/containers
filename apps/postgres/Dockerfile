@@ -34,13 +34,6 @@ RUN chmod +x /entrypoint.sh
 RUN wget -O /usr/local/bin/supercronic "https://github.com/aptible/supercronic/releases/download/${SUPERCRONIC_VERSION}/supercronic-linux-amd64" \
     && chmod +x /usr/local/bin/supercronic
 
-# Install extension
-RUN wget -O /tmp/system_stats.tar.gz https://github.com/EnterpriseDB/system_stats/archive/refs/tags/v${SYSTEM_STATS_EXTENSION_VERSION}.tar.gz \
-    && cd /tmp/ && tar -zxvf system_stats.tar.gz \
-    && cd system_stats-${SYSTEM_STATS_EXTENSION_VERSION} \
-    && PATH="/usr/local/pgsql/bin:$PATH" make USE_PGXS=1 \
-    && PATH="/usr/local/pgsql/bin:$PATH" make install USE_PGXS=1
-
 RUN wget -O /tmp/vchord.deb https://github.com/tensorchord/VectorChord/releases/download/${VCHORD_EXTENSION_VERSION}/postgresql-17-vchord_${VCHORD_EXTENSION_VERSION}-1_$(dpkg --print-architecture).deb \
     && apt install /tmp/vchord.deb
 
