@@ -13,7 +13,6 @@ if [ "$1" != "postgres" ]; then
     exec docker-entrypoint.sh "$@"
 fi
 
-
 if [ ! -f /etc/pgbackrest/pgbackrest.conf ]; then
     log_message "📢 Creating pgbackrest configuration file..."
     mkdir -p /var/lib/pgbackrest
@@ -45,6 +44,43 @@ repo1-retention-full-type=time
 EOF
 fi
 
+log_message "📢 Creating postgresql configuration file..."
+mkdir -p /var/lib/postgresql/data
+chown postgres:postgres /var/lib/postgresql/data
+cat <<EOF > /var/lib/postgresql/data/postgresql.conf
+listen_addresses = '*'
+port = 5432
+max_connections = 100
+unix_socket_directories = '/var/run/postgresql'
+shared_buffers = 128MB
+
+archive_mode = on
+archive_command = 'pgbackrest --stanza=production archive-push %p'
+archive_timeout = 300
+
+wal_level = replica
+max_wal_senders = 10
+wal_keep_size = 1GB
+wal_compression = on
+checkpoint_completion_target = 0.7
+checkpoint_timeout = 15min
+max_wal_size = 2GB
+min_wal_size = 1GB
+
+ssl=on
+ssl_cert_file = '/etc/ssl/certs/ssl-cert-snakeoil.pem'
+ssl_key_file = '/etc/ssl/private/ssl-cert-snakeoil.key'
+
+shared_preload_libraries = vchord
+
+logging_collector = on
+log_directory = '/var/log/pgbackrest/postgres'
+log_filename = 'postgresql-%Y-%m-%d.log'
+log_file_mode = 0777
+log_rotation_age = 1d
+log_truncate_on_rotation = on
+EOF
+
 if [ ! -f /etc/pgbackrest/pgbackrest.conf ]; then
     log_message "📢 Creating supercronic cron job configuration file..."
     cat <<EOF > /cronjob
@@ -66,25 +102,6 @@ gosu postgres supercronic -debug -inotify /cronjob > /var/log/pgbackrest/supercr
 
 log_message "📢 Starting PostgreSQL with pgbackrest archiving enabled..."
 shift
-# PostgreSQL configuration arguments
-postgres_args=(
-    "-c" "archive_mode=on"
-    "-c" "archive_command='pgbackrest --stanza=production archive-push %p'"
-    "-c" "archive_timeout=300"
-    "-c" "wal_level=replica"
-    "-c" "max_wal_senders=10"
-    "-c" "wal_keep_size=1GB"
-    "-c" "wal_compression=on"
-    "-c" "checkpoint_completion_target=0.7"
-    "-c" "checkpoint_timeout=15min"
-    "-c" "max_wal_size=2GB"
-    "-c" "min_wal_size=1GB"
-    "-c" "ssl=on"
-    "-c" "ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem"
-    "-c" "ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key"
-    "-c" "shared_preload_libraries=vchord"
-    "$@"
-)
 
 log_message "📢 Setting permissions for pgbackrest directories..."
 chown -R postgres:postgres /var/lib/postgresql/data
@@ -95,26 +112,24 @@ chown -R postgres:postgres /tmp/pgbackrest
 
 initialize_stanza() {
     log_message "📢 Initializing pgbackrest stanza..."
-    local pgconf="/var/lib/postgresql/data/postgresql.conf"
-    local pg_opts="${postgres_args[*]}"
-    gosu postgres pg_ctl start -o "-p 5432 -k /var/run/postgresql $pg_opts" -D /var/lib/postgresql/data
+    gosu postgres pg_ctl start -o "-p 5432 -k /var/run/postgresql" -D /var/lib/postgresql/data
 
     if gosu postgres pgbackrest --stanza=production --log-level-console=info stanza-create; then
         log_message "✅ Pgbackrest stanza initialized successfully"
-        gosu postgres pg_ctl restart -o "-p 5432 -k /var/run/postgresql $pg_opts" -D /var/lib/postgresql/data
+        gosu postgres pg_ctl restart -o "-p 5432 -k /var/run/postgresql" -D /var/lib/postgresql/data
     else
         log_message "❌ Pgbackrest stanza initialization failed, exiting..."
-        gosu postgres pg_ctl stop -o "-p 5432 -k /var/run/postgresql $pg_opts" -D /var/lib/postgresql/data
+        gosu postgres pg_ctl stop -o "-p 5432 -k /var/run/postgresql" -D /var/lib/postgresql/data
         exit 1
     fi
 
     log_message "📢 Checking pgbackrest stanza..."
     if gosu postgres pgbackrest --stanza=production --log-level-console=info check; then
         log_message "✅ Pgbackrest stanza check passed"
-        gosu postgres pg_ctl stop -o "-p 5432 -k /var/run/postgresql $pg_opts" -D /var/lib/postgresql/data
+        gosu postgres pg_ctl stop -o "-p 5432 -k /var/run/postgresql" -D /var/lib/postgresql/data
     else
         log_message "❌ Pgbackrest stanza check failed, exiting..."
-        gosu postgres pg_ctl stop -o "-p 5432 -k /var/run/postgresql $pg_opts" -D /var/lib/postgresql/data
+        gosu postgres pg_ctl stop -o "-p 5432 -k /var/run/postgresql" -D /var/lib/postgresql/data
         exit 1
     fi
 }
@@ -177,7 +192,6 @@ if [ ! -f /var/lib/postgresql/data/global/pg_control ]; then
     log_message "📢 PostgreSQL data directory not initialized. Checking for backups to restore..."
     EXISTING_BACKUPS=$(check_existing_backups)
     if [ "$EXISTING_BACKUPS" -gt 0 ]; then
-        log_message "📢 Found $EXISTING_BACKUPS existing backup(s), restoring latest backup..."
         restore_latest_backup
     else
         log_message "📢 No existing backups found, running initdb..."
@@ -190,20 +204,18 @@ else
 fi
 
 # Start PostgreSQL
-docker-entrypoint.sh postgres "${postgres_args[@]}" &
+docker-entrypoint.sh postgres "$@" &
 POSTGRES_PID=$!
 
 (
     log_message "📢 Waiting for PostgreSQL to be ready..."
     if check_postgres_ready; then
-        log_message "PostgreSQL is ready!"
+        log_message "✅ PostgreSQL is ready!"
         # Only create a new backup if no data was restored
         EXISTING_BACKUPS=$(check_existing_backups)
         if [ "$EXISTING_BACKUPS" -eq 0 ]; then
             log_message "📢 No existing backups found or new database initialized, creating initial backup..."
             create_initial_backup
-        else
-            log_message "✅ Backup restoration completed"
         fi
     else
         log_message "❌ PostgreSQL failed to become ready within 2 minutes"
