@@ -10,7 +10,13 @@ ARG SYSTEM_STATS_EXTENSION_VERSION="3.2"
 # renovate: datasource=github-releases depName=tensorchord/VectorChord
 ARG VCHORD_EXTENSION_VERSION="0.4.3"
 
-ENV TZ="Asia/Kolkata"
+ENV TZ=UTC
+ENV LANG=en_US.utf8
+ENV PGVERSION=17
+ENV PGPORT=5432
+ENV PGUSER=postgres
+ENV PGDATA=/var/lib/postgresql/data
+ENV PGBACK_DATA=/var/lib/pgbackrest
 
 RUN DEBIAN_FRONTEND=noninteractive apt update \
     && apt install -y --no-install-recommends \
@@ -23,9 +29,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt update \
     postgresql-client \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-RUN cp /usr/share/zoneinfo/${TZ} /etc/localtime
-RUN echo "${TZ}" > /etc/timezone
 
 COPY . /
 RUN chmod +x /entrypoint.sh

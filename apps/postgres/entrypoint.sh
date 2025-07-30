@@ -15,12 +15,12 @@ fi
 
 if [ ! -f /etc/pgbackrest/pgbackrest.conf ]; then
     log_message "📢 Creating pgbackrest configuration file..."
-    mkdir -p /var/lib/pgbackrest
-    chown postgres:postgres /var/lib/pgbackrest
+    mkdir -p $PGBACK_DATA
+    chown $PGUSER:$PGUSER $PGBACK_DATA
     cat <<EOF > /etc/pgbackrest/pgbackrest.conf
 [production]
-pg1-path=/var/lib/postgresql/data
-pg1-port=5432
+pg1-path=$PGDATA
+pg1-port=$PGPORT
 pg1-user=postgres
 pg1-database=postgres
 
@@ -35,7 +35,7 @@ compress-level=9
 # Local repository configuration
 repo1-bundle=y
 repo1-block=y
-repo1-path=/var/lib/pgbackrest
+repo1-path=$PGBACK_DATA
 repo1-cipher-type=aes-256-cbc
 repo1-cipher-pass=some-secret-passphrase
 repo1-retention-archive=2
@@ -45,11 +45,12 @@ EOF
 fi
 
 log_message "📢 Creating postgresql configuration file..."
-mkdir -p /var/lib/postgresql/data
-chown postgres:postgres /var/lib/postgresql/data
-cat <<EOF > /var/lib/postgresql/data/postgresql.conf
+mkdir -p $PGDATA
+chown $PGUSER:$PGUSER $PGDATA
+
+cat <<EOF > $PGDATA/postgresql.conf
 listen_addresses = '*'
-port = 5432
+port = $PGPORT
 max_connections = 100
 unix_socket_directories = '/var/run/postgresql'
 shared_buffers = 128MB
@@ -81,6 +82,19 @@ log_rotation_age = 1d
 log_truncate_on_rotation = on
 EOF
 
+log_message "📢 Creating pg_hba configuration file..."
+cat <<EOF > $PGDATA/pg_hba.conf
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+# "local" is for Unix domain socket connections only
+local   all             all                                     trust
+# IPv4 local connections:
+host    all             all             127.0.0.1/32            trust
+# IPv6 local connections:
+host    all             all             ::1/128                 trust
+# Everything else
+hostssl all             all             all                     scram-sha-256
+EOF
+
 if [ ! -f /etc/pgbackrest/pgbackrest.conf ]; then
     log_message "📢 Creating supercronic cron job configuration file..."
     cat <<EOF > /cronjob
@@ -98,38 +112,38 @@ EOF
 fi
 
 log_message "📢 Setting up supercronic for cron job management..."
-gosu postgres supercronic -debug -inotify /cronjob > /var/log/pgbackrest/supercronic.log 2>&1 &
+gosu $PGUSER supercronic -debug -inotify /cronjob > /var/log/pgbackrest/supercronic.log 2>&1 &
 
 log_message "📢 Starting PostgreSQL with pgbackrest archiving enabled..."
 shift
 
 log_message "📢 Setting permissions for pgbackrest directories..."
-chown -R postgres:postgres /var/lib/postgresql/data
-chown -R postgres:postgres /var/lib/pgbackrest
-chown -R postgres:postgres /var/log/pgbackrest
-chown -R postgres:postgres /etc/pgbackrest
-chown -R postgres:postgres /tmp/pgbackrest
+chown -R $PGUSER:$PGUSER $PGDATA
+chown -R $PGUSER:$PGUSER $PGBACK_DATA
+chown -R $PGUSER:$PGUSER /var/log/pgbackrest
+chown -R $PGUSER:$PGUSER /etc/pgbackrest
+chown -R $PGUSER:$PGUSER /tmp/pgbackrest
 
 initialize_stanza() {
     log_message "📢 Initializing pgbackrest stanza..."
-    gosu postgres pg_ctl start -o "-p 5432 -k /var/run/postgresql" -D /var/lib/postgresql/data
+    gosu $PGUSER pg_ctl start -o "-p $PGPORT -k /var/run/postgresql" -D $PGDATA
 
-    if gosu postgres pgbackrest --stanza=production --log-level-console=info stanza-create; then
+    if gosu $PGUSER pgbackrest --stanza=production --log-level-console=info stanza-create; then
         log_message "✅ Pgbackrest stanza initialized successfully"
-        gosu postgres pg_ctl restart -o "-p 5432 -k /var/run/postgresql" -D /var/lib/postgresql/data
+        gosu $PGUSER pg_ctl restart -o "-p $PGPORT -k /var/run/postgresql" -D $PGDATA
     else
         log_message "❌ Pgbackrest stanza initialization failed, exiting..."
-        gosu postgres pg_ctl stop -o "-p 5432 -k /var/run/postgresql" -D /var/lib/postgresql/data
+        gosu $PGUSER pg_ctl stop -o "-p $PGPORT -k /var/run/postgresql" -D $PGDATA
         exit 1
     fi
 
     log_message "📢 Checking pgbackrest stanza..."
-    if gosu postgres pgbackrest --stanza=production --log-level-console=info check; then
+    if gosu $PGUSER pgbackrest --stanza=production --log-level-console=info check; then
         log_message "✅ Pgbackrest stanza check passed"
-        gosu postgres pg_ctl stop -o "-p 5432 -k /var/run/postgresql" -D /var/lib/postgresql/data
+        gosu $PGUSER pg_ctl stop -o "-p $PGPORT -k /var/run/postgresql" -D $PGDATA
     else
         log_message "❌ Pgbackrest stanza check failed, exiting..."
-        gosu postgres pg_ctl stop -o "-p 5432 -k /var/run/postgresql" -D /var/lib/postgresql/data
+        gosu $PGUSER pg_ctl stop -o "-p $PGPORT -k /var/run/postgresql" -D $PGDATA
         exit 1
     fi
 }
@@ -137,7 +151,7 @@ initialize_stanza() {
 # Function to check for existing backups
 check_existing_backups() {
     local backup_count
-    backup_count=$(gosu postgres pgbackrest --stanza=production info --output=json | jq '.[] | select(.name=="production") | .backup | length')
+    backup_count=$(gosu $PGUSER pgbackrest --stanza=production info --output=json | jq '.[] | select(.name=="production") | .backup | length')
     if [ -n "$backup_count" ] && [ "$backup_count" -ge 0 ]; then
         log_message "📢 Found $backup_count valid backup(s)"
         echo "$backup_count"
@@ -152,11 +166,11 @@ check_existing_backups() {
 # Function to restore the latest backup
 restore_latest_backup() {
     log_message "📢 Restoring latest pgbackrest backup..."
-    if [ -d /var/lib/postgresql/data ] && [ -n "$(ls -A /var/lib/postgresql/data)" ]; then
+    if [ -d $PGDATA ] && [ -n "$(ls -A $PGDATA)" ]; then
         log_message "⚠️ Cleaning existing data directory..."
-        rm -rf /var/lib/postgresql/data/*
+        rm -rf $PGDATA/*
     fi
-    if gosu postgres pgbackrest --stanza=production --log-level-console=info restore; then
+    if gosu $PGUSER pgbackrest --stanza=production --log-level-console=info restore; then
         log_message "✅ Latest backup restored successfully"
     else
         log_message "❌ Failed to restore latest backup, exiting..."
@@ -167,7 +181,7 @@ restore_latest_backup() {
 # Function to create initial backup
 create_initial_backup() {
     log_message "📢 Creating initial pgbackrest backup..."
-    if gosu postgres pgbackrest --stanza=production --type=full --log-level-console=info backup; then
+    if gosu $PGUSER pgbackrest --stanza=production --type=full --log-level-console=info backup; then
         log_message "✅ Initial backup created successfully"
         return 0
     else
@@ -187,9 +201,9 @@ check_postgres_ready() {
     return 1
 }
 
-# Initialize database if pg_control doesn't exist
-if [ ! -f /var/lib/postgresql/data/global/pg_control ]; then
-    log_message "📢 PostgreSQL data directory not initialized. Checking for backups to restore..."
+# Initialize database if PG_VERSION doesn't exist
+if [[ ! -f $PGDATA/PG_VERSION ]]; then
+    log_message "📢 PostgreSQL not initialized. Checking for backups to restore..."
     EXISTING_BACKUPS=$(check_existing_backups)
     if [ "$EXISTING_BACKUPS" -gt 0 ]; then
         restore_latest_backup
@@ -199,7 +213,7 @@ if [ ! -f /var/lib/postgresql/data/global/pg_control ]; then
         initialize_stanza
     fi
 else
-    log_message "✅ PostgreSQL data directory already initialized."
+    log_message "✅ PostgreSQL already initialized."
     initialize_stanza
 fi
 
