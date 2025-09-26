@@ -10,7 +10,7 @@ variable "VERSION" {
 
 variable "SUPERCRONIC_VERSION" {
   // renovate: datasource=github-releases depName=aptible/supercronic
-  default = "v0.2.34"
+  default = "v0.2.36"
 }
 
 variable "SOURCE" {
