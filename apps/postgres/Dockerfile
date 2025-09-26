@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM postgres:17
+FROM postgres:18
 
 ARG POSTGRES_VERSION
 
