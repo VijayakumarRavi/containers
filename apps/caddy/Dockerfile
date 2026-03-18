@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
-
+ARG VERSION
 # Build stage
-FROM caddy:2.10.2-builder-alpine AS builder
+FROM caddy:${VERSION}-builder-alpine AS builder
 
 # Build Caddy with the Cloudflare DNS module
 RUN xcaddy build \
@@ -11,7 +11,7 @@ RUN xcaddy build \
     --with github.com/caddyserver/transform-encoder
 
 # Final stage
-FROM caddy:2.10.2-alpine
+FROM caddy:${VERSION}-alpine
 
 COPY defaults/Caddyfile /etc/caddy/Caddyfile
 COPY defaults/index.html /srv/index.html
