@@ -5,8 +5,8 @@ variable "APP" {
 }
 
 variable "VERSION" {
-  // renovate: datasource=repology depName=alpine_3_22/irqbalance
-  default = "1.9.4-r1"
+  // renovate: datasource=github-releases depName=irqbalance/irqbalance
+  default = "1.9.4"
 }
 
 variable "SOURCE" {
