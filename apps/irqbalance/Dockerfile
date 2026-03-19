@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 
-FROM docker.io/library/alpine:3.22
+FROM docker.io/library/alpine:edge
 ARG VERSION
 USER root
 RUN \
     apk add --no-cache \
         bash \
-        irqbalance=="${VERSION}" \
+        irqbalance~="${VERSION}" \
     && rm -rf /tmp/*
 ENTRYPOINT ["/usr/sbin/irqbalance", "--foreground"]
