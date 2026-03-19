@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=github-releases depName=irqbalance/irqbalance
-  default = "1.9.4"
+  default = "1.9.5"
 }
 
 variable "SOURCE" {
