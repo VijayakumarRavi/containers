@@ -1,5 +1,3 @@
----
-# Areas
 - name: area/apps
   color: 0e8a16
 - name: area/github
@@ -10,7 +8,6 @@
   color: 0e8a16
 - name: area/taskfile
   color: 0e8a16
-# Semantic Types
 - name: type/digest
   color: ffeC19
 - name: type/patch
@@ -19,6 +16,27 @@
   color: ff9800
 - name: type/major
   color: f6412d
-# Uncategorized
 - name: stale
   color: c5def5
+- name: app/bazarr
+  color: 027fa0
+- name: app/prowlarr
+  color: 027fa0
+- name: app/qbittorrent
+  color: 027fa0
+- name: app/sabnzbd
+  color: 027fa0
+- name: app/radarr
+  color: 027fa0
+- name: app/plex
+  color: 027fa0
+- name: app/tautulli
+  color: 027fa0
+- name: app/it-tools
+  color: 027fa0
+- name: app/smartctl-exporter
+  color: 027fa0
+- name: app/caddy
+  color: 027fa0
+- name: app/sonarr
+  color: 027fa0

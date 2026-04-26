@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 
-FROM docker.io/library/python:3.13-alpine3.22
+FROM docker.io/library/python:3.14-alpine3.23
 ARG TARGETARCH
-ARG TARGETARCH=${TARGETARCH/arm64/aarch64}
-ARG TARGETARCH=${TARGETARCH/amd64/x86_64}
+ARG QBARCH=${TARGETARCH/arm64/aarch64}
+ARG QBARCH=${QBARCH/amd64/x86_64}
 ARG VERSION
 
 ENV QBT_CONFIRM_LEGAL_NOTICE=1 \
@@ -28,7 +28,7 @@ RUN \
     && \
     mkdir -p /app \
     && LIBTORRENT=$(curl -sL "https://github.com/userdocs/qbittorrent-nox-static/releases/latest/download/dependency-version.json" | jq -r '.libtorrent_2_0') \
-    && curl -fsSL -o /app/qbittorrent-nox "https://github.com/userdocs/qbittorrent-nox-static/releases/download/release-${VERSION}_v${LIBTORRENT}/${TARGETARCH}-qbittorrent-nox" \
+    && curl -fsSL -o /app/qbittorrent-nox "https://github.com/userdocs/qbittorrent-nox-static/releases/download/release-${VERSION}_v${LIBTORRENT}/${QBARCH}-qbittorrent-nox" \
     && chown -R root:root /app/qbittorrent-nox \
     && chmod -R 755 /app/qbittorrent-nox \
     && rm -rf /tmp/*

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM docker.io/library/python:3.13-alpine3.22
+FROM docker.io/library/python:3.14-alpine3.23
 ARG VERSION
 
 ENV \
@@ -15,8 +15,7 @@ ENV \
     UV_SYSTEM_PYTHON=true \
     UV_EXTRA_INDEX_URL="https://wheel-index.linuxserver.io/alpine-3.22/"
 
-ENV TAUTULLI_DOCKER="True" \
-    TAUTULLI__PORT=8181
+ENV TAUTULLI_DOCKER="True"
 
 USER root
 WORKDIR /app
@@ -38,7 +37,9 @@ RUN \
         libffi-dev \
         musl-dev \
         openssl-dev \
-    && pip install uv \
+    && pip install \
+        uv \
+        'setuptools==81' \
     && uv pip install \
         --requirement "https://raw.githubusercontent.com/Tautulli/tautulli-baseimage/python3/requirements.txt" \
     && mkdir -p /app \
